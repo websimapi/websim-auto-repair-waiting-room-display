@@ -1,0 +1,171 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto Repair Waiting Room Display</title>
+    <link rel="stylesheet" href="styles.css">
+    <script type="importmap">
+    {
+      "imports": {
+        "vue": "https://unpkg.com/vue@3/dist/vue.esm-browser.js"
+      }
+    }
+    </script>
+</head>
+<body>
+    <div id="app">
+        <div class="container">
+            <header>
+                <h1>Auto Repair Waiting Room Display</h1>
+                <div class="toggle-controls">
+                    <button @click="showControls = !showControls">
+                        {{ showControls ? 'Hide Controls' : 'Show Controls' }}
+                    </button>
+                </div>
+            </header>
+            
+            <div class="controls" v-if="showControls">
+                <div class="control-section">
+                    <h2>Display Settings</h2>
+                    <div class="input-group">
+                        <label for="shopName">Shop Name:</label>
+                        <input type="text" id="shopName" v-model="shopName">
+                    </div>
+                    <div class="input-group">
+                        <label for="rotating">Enable Auto-Rotation:</label>
+                        <input type="checkbox" id="rotating" v-model="autoRotate">
+                    </div>
+                    <div class="input-group" v-if="autoRotate">
+                        <label for="rotationTime">Rotation Time (seconds):</label>
+                        <input type="number" id="rotationTime" v-model="rotationTime" min="5" max="120">
+                    </div>
+                    <button @click="startPresentation" class="action-button">
+                        {{ inPresentationMode ? 'Update Display' : 'Start Display' }}
+                    </button>
+                </div>
+                
+                <div class="control-section">
+                    <h2>Content Generation</h2>
+                    <div class="input-group">
+                        <label for="contentType">Content Type:</label>
+                        <select id="contentType" v-model="newSlide.type">
+                            <option value="tip">Car Maintenance Tip</option>
+                            <option value="fact">Automotive Fun Fact</option>
+                            <option value="service">Service Highlight</option>
+                            <option value="custom">Custom Content</option>
+                        </select>
+                    </div>
+                    <div class="input-group" v-if="newSlide.type === 'service'">
+                        <label for="service">Service Type:</label>
+                        <input type="text" id="service" v-model="newSlide.serviceType" 
+                               placeholder="e.g., Oil Change, Brake Service, etc.">
+                    </div>
+                    <div class="input-group" v-if="newSlide.type === 'custom'">
+                        <label for="customPrompt">Custom Content Prompt:</label>
+                        <textarea id="customPrompt" v-model="newSlide.customPrompt"
+                                 placeholder="Describe what content you want to display"></textarea>
+                    </div>
+                    <button @click="generateContent" class="action-button" 
+                            :disabled="isGenerating">
+                        {{ isGenerating ? 'Generating...' : 'Generate Content' }}
+                    </button>
+                </div>
+                
+                <div class="slides-preview">
+                    <h2>Content Slides ({{ slides.length }})</h2>
+                    <div class="slide-list">
+                        <div v-for="(slide, index) in slides" :key="index" class="slide-item">
+                            <div class="slide-preview">
+                                <img :src="slide.imageUrl" alt="Slide preview" class="slide-thumbnail">
+                                <div class="slide-text-preview">{{ slide.title }}</div>
+                            </div>
+                            <div class="slide-actions">
+                                <button @click="removeSlide(index)" class="delete-button">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-if="slides.length === 0" class="no-slides">
+                        No content slides created yet. Generate some content above!
+                    </div>
+                </div>
+            </div>
+            
+            <div class="presentation" v-if="inPresentationMode" :class="{ 'hide-controls': !showControls }">
+                <div class="presentation-header">
+                    <h2>{{ shopName }}</h2>
+                    <div class="current-time">{{ currentTime }}</div>
+                </div>
+                <div class="presentation-content">
+                    <transition name="fade" mode="out-in">
+                        <div :key="currentSlideIndex" class="slide">
+                            <div class="slide-image">
+                                <img :src="currentSlide.imageUrl" alt="Slide image">
+                            </div>
+                            <div class="slide-content">
+                                <h3>{{ currentSlide.title }}</h3>
+                                <p>{{ currentSlide.content }}</p>
+                            </div>
+                        </div>
+                    </transition>
+                </div>
+                <div class="slide-indicators">
+                    <span v-for="(slide, index) in slides" 
+                          :key="index" 
+                          :class="{ active: index === currentSlideIndex }"
+                          @click="goToSlide(index)"></span>
+                </div>
+            </div>
+            
+            <div v-if="!inPresentationMode && !isGenerating && slides.length === 0" class="welcome-screen">
+                <div class="welcome-content">
+                    <h2>Welcome to the Auto Repair Waiting Room Display</h2>
+                    <p>Create engaging content for your customers while they wait.</p>
+                    <div class="welcome-steps">
+                        <div class="step">
+                            <div class="step-number">1</div>
+                            <div class="step-text">Enter your shop information</div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">2</div>
+                            <div class="step-text">Generate maintenance tips, facts, and services</div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">3</div>
+                            <div class="step-text">Start your waiting room display</div>
+                        </div>
+                    </div>
+                    <button @click="generateSampleContent" class="action-button welcome-button">
+                        Generate Sample Content
+                    </button>
+                </div>
+                <div class="welcome-image">
+                    <svg width="300" height="300" viewBox="0 0 300 300">
+                        <circle cx="150" cy="150" r="130" fill="#f0f0f0" />
+                        <g transform="translate(75, 75) scale(0.5)">
+                            <path d="M240,120 C240,170 200,210 150,210 C100,210 60,170 60,120 C60,70 150,30 150,30 C150,30 240,70 240,120 Z" fill="#3b82f6" />
+                            <rect x="120" y="210" width="60" height="30" fill="#3b82f6" />
+                            <rect x="90" y="240" width="120" height="20" rx="5" fill="#1d4ed8" />
+                            <circle cx="100" cy="120" r="20" fill="white" />
+                            <circle cx="200" cy="120" r="20" fill="white" />
+                            <circle cx="100" cy="120" r="10" fill="#111" />
+                            <circle cx="200" cy="120" r="10" fill="#111" />
+                            <path d="M130,170 C140,180 160,180 170,170" stroke="#111" stroke-width="5" fill="none" />
+                        </g>
+                    </svg>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Loading overlay -->
+        <div class="loading-overlay" v-if="isGenerating">
+            <div class="loading-content">
+                <div class="spinner"></div>
+                <p>{{ loadingMessage }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <script type="module" src="app.js"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4c6229722a6346bc8eb5cb0e5eae5d41","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
